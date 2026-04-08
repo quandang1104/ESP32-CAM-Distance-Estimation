@@ -1,15 +1,15 @@
 import cv2
 from ultralytics import YOLO
 
-# 1. Cấu hình các thông số (Bạn sẽ tinh chỉnh sau)
-ESP32_IP = "192.168.2.41" # Thay bằng IP hiện trên Serial Monitor của ESP32
+# 1. Cấu hình các thông số 
+ESP32_IP = "192.168.2.41" 
 STREAM_URL = f"http://192.168.2.41:81/stream"
 
 # Thông số để tính khoảng cách
 REAL_WIDTH = 1.8   # Chiều rộng thực tế ô tô (mét)
-FOCAL_LENGTH = 700 # Tiêu cự (Sẽ calibrate sau)
+FOCAL_LENGTH = 700 # Tiêu cự 
 
-# 2. Tải model AI (Lần đầu chạy sẽ hơi lâu vì nó tự tải model về)
+# 2. Tải model AI 
 model = YOLO('yolov8n.pt') 
 
 # cap = cv2.VideoCapture(STREAM_URL)
@@ -22,7 +22,7 @@ while True:
         continue
 
     # 3. Nhận diện ô tô (Class 2 là xe con, 7 là xe tải)
-    results = model(frame, classes=[2, 7], conf=0.5)
+    results = model(frame, classes=[2, 7], conf=0.5, verbose=False, device='cpu')
 
     for r in results:
         for box in r.boxes:
