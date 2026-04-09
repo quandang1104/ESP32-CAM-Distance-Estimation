@@ -1,44 +1,43 @@
 import cv2
-from ultralytics import YOLO
 
-# 1. Cấu hình các thông số 
-ESP32_IP = "192.168.2.41" 
-STREAM_URL = f"http://192.168.2.41:81/stream"
+STREAM_URL = "http://192.168.2.41:81/stream"  
+REAL_WIDTH = 0.03  # Chiều rộng thực tế của xe Hotwheels (Mét). 3cm = 0.03m
+FOCAL_LENGTH = 450 # Tiêu cự ước lượng 
 
-# Thông số để tính khoảng cách
-REAL_WIDTH = 1.8   # Chiều rộng thực tế ô tô (mét)
-FOCAL_LENGTH = 700 # Tiêu cự 
+# 2. Khởi tạo "Bộ não" nhận diện
+car_cascade = cv2.CascadeClassifier('cars.xml')
 
-# 2. Tải model AI 
-model = YOLO('yolov8n.pt') 
+# 3. Kết nối Camera ESP32
+cap = cv2.VideoCapture(STREAM_URL)
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Ép chạy mượt thời gian thực
 
-# cap = cv2.VideoCapture(STREAM_URL)
-cap = cv2.VideoCapture(STREAM_URL, cv2.CAP_FFMPEG)
+print("Đang kết nối với ESP32 Camera...")
 
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("Waiting for ESP32...")
         continue
 
-    # 3. Nhận diện ô tô (Class 2 là xe con, 7 là xe tải)
-    results = model(frame, classes=[2, 7], conf=0.5, verbose=False, device='cpu')
+    # Chuyển ảnh sang trắng đen để Haar Cascade chạy nhanh hơn gấp 3 lần
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    for r in results:
-        for box in r.boxes:
-            # Lấy tọa độ và vẽ khung
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            w_pixel = x2 - x1
-            
-            # 4. Tính khoảng cách
-            distance = (REAL_WIDTH * FOCAL_LENGTH) / w_pixel
-            
-            # Vẽ lên màn hình
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, f"{distance:.2f}m", (x1, y1 - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    # 4. Tìm kiếm ô tô trong khung hình
+    # scaleFactor và minNeighbors là độ nhạy.
+    cars = car_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
 
-    cv2.imshow("AI system CAM", frame)
+    for (x, y, w, h) in cars:
+        distance = (REAL_WIDTH * FOCAL_LENGTH) / w
+        
+        # Vẽ khung màu xanh lá bao quanh xe
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        
+        # Ghi chữ lên màn hình
+        text = f"Khoang cach: {distance:.2f} m"
+        cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    # Hiển thị
+    cv2.imshow("Hotwheels Tracker", frame)
+    
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
