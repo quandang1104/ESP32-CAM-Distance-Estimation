@@ -1,6 +1,26 @@
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <WebServer.h>
 
+#define TRIG_PIN 14
+#define ECHO_PIN 15
+WebServer server(80);
+
+// Hàm đo khoảng cách bằng siêu âm
+String getUltrasonicDistance() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  
+  // Timeout 30000us (tương đương đo xa tối đa ~5 mét) để không bị treo mạch
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000); 
+  if (duration == 0) return "-1"; // Lỗi không thấy sóng dội
+  
+  float distance_cm = duration * 0.034 / 2.0;
+  return String(distance_cm);
+}
 //
 // WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
 //            Ensure ESP32 Wrover Module or other board with PSRAM is selected
@@ -45,8 +65,10 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
-
+  
   camera_config_t config;
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = Y2_GPIO_NUM;
@@ -144,6 +166,12 @@ void setup() {
 
   startCameraServer();
 
+  server.on("/distance", HTTP_GET, []() {
+    String dist = getUltrasonicDistance();
+    server.send(200, "text/plain", dist);
+  });
+  server.begin();
+
   Serial.print("Camera Ready! Use 'http://");
   Serial.print(WiFi.localIP());
   Serial.println("' to connect");
@@ -151,5 +179,6 @@ void setup() {
 
 void loop() {
   // Do nothing. Everything is done in another task by the web server
-  delay(10000);
+  server.handleClient();
+  delay(2);
 }
