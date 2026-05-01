@@ -1,43 +1,76 @@
-# 🚗 AI-Powered Vehicle Distance Estimation (ESP32-CAM & YOLOv8)
+# 🏎️ ESP32-CAM Hotwheels Distance Tracker
 
-![Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge&logo=python&logoColor=white)
-![C++](https://img.shields.io/badge/C++-Embedded-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)
-![ESP32](https://img.shields.io/badge/ESP32--CAM-PlatformIO-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
-![YOLOv8](https://img.shields.io/badge/YOLOv8-Computer_Vision-FF9900?style=for-the-badge&logo=yolo&logoColor=white)
+Dự án nhận diện và đo khoảng cách xe mô hình (Hotwheels) theo thời gian thực sử dụng **ESP32-CAM** và **OpenCV (Haar Cascade)**. 
 
-A real-time monitoring system combining IoT (Edge device) and AI. This project utilizes an **ESP32-CAM** to broadcast a live video stream (MJPEG) over a local WiFi network, coupled with a **YOLOv8** model running on a PC to detect vehicles and dynamically estimate their physical distance.
+Thay vì sử dụng các mô hình Deep Learning nặng nề (như YOLOv8) gây trễ hình (lag) và quá tải bộ đệm, dự án này áp dụng phương pháp tối ưu hóa luồng video (stream) thô từ ESP32-CAM kết hợp với thuật toán Haar Cascade siêu nhẹ trên Python. Kết quả mang lại tốc độ khung hình (FPS) mượt mà ngay cả trên máy tính cấu hình thấp.
 
 ---
 
-## ✨ Key Features
-
-* **Live Video Streaming:** Built a lightweight asynchronous HTTP Web Server on the ESP32 using C/C++, optimized for memory and low latency to stream continuous frames.
-* **Real-time Object Detection:** Integrated the YOLOv8 Deep Learning model (via the Ultralytics library) to accurately detect vehicles and draw bounding boxes.
-* **Distance Estimation:** Implemented a Triangle Similarity mathematical algorithm to convert pixel coordinates into actual physical distance (meters).
-
-## 🛠️ Hardware & Tech Stack
-
-### Hardware
-* AI-Thinker ESP32-CAM Development Board (OV2640 Camera module).
-* USB-to-TTL Programmer/Converter (FT232RL/CH340).
-
-### Software
-* **Edge Firmware:** Arduino Framework, PlatformIO (VS Code).
-* **AI Client:** Python, OpenCV (Image processing), Ultralytics (YOLO inference).
+## 🚀 Tính năng nổi bật
+* **Web Server siêu mượt:** Sử dụng C++ gốc của Espressif để tối ưu hóa việc phát luồng MJPEG.
+* **Nhận diện siêu nhẹ:** Sử dụng `haarcascade_car.xml` không cần GPU, không cần PyTorch/TensorFlow.
+* **Đo khoảng cách thực tế:** Tính toán khoảng cách từ camera đến xe dựa trên nguyên lý Tam giác đồng dạng (Quang học).
+* **Độ trễ thấp (Low Latency):** Xử lý triệt để hiện tượng kẹt bộ đệm (Buffer Lag) của OpenCV.
 
 ---
 
-## 🚀 Setup & Usage Guide
+## 🛠️ Yêu cầu phần cứng & Phần mềm
 
-### 1. Flashing the Firmware (C++)
-1. Open the `firmware` directory using PlatformIO in VS Code.
-2. Update your WiFi credentials (`ssid` and `password`) in the `src/main.cpp` file.
-3. Connect **GPIO 0** to **GND** on the ESP32-CAM to enter Flash Mode.
-4. Build and Upload the code. Once successful, disconnect GPIO 0, press the Reset button, and open the Serial Monitor to retrieve the stream's IP address.
+### Phần cứng:
+* 1x Mạch ESP32-CAM (Loại AI Thinker).
+* 1x Đế nạp ESP32-CAM-MB (hoặc module FTDI).
+* Nguồn điện: Khuyến nghị dùng nguồn 5V-2A (như sạc dự phòng) để chip WiFi hoạt động ổn định nhất, chống sụt áp.
+* 1x Chiếc xe mô hình (ví dụ: Hotwheels).
 
-### 2. Running the AI Client (Python)
-1. Open a terminal and navigate to the `software` directory.
-2. Open `main.py` and update the `ESP32_IP` variable with the IP address obtained from the Serial Monitor.
-3. Activate your virtual environment and install the required dependencies:
+### Phần mềm:
+* **VS Code** với extension **PlatformIO**.
+* **Python 3.x**
+* Thư viện Python: `opencv-python`, `numpy`.
+
+---
+
+## ⚙️ Hướng dẫn Cài đặt & Sử dụng
+
+### Phần 1: Cài đặt mạch ESP32-CAM (C++)
+1. Mở thư mục dự án bằng PlatformIO.
+2. Mở file `src/main.cpp`.
+3. Thay đổi thông tin mạng WiFi của bạn:
+   ```cpp
+   const char* ssid = "YOUR_WIFI_NAME";
+   const char* password = "YOUR_WIFI_PASSWORD";
+   ```
+   *(Lưu ý: Không bao giờ push mật khẩu thật của bạn lên Github!)*
+4. Kết nối mạch vào máy tính và bấm **Upload**.
+5. Mở Serial Monitor, copy địa chỉ IP của mạch (ví dụ: `http://192.168.2.41`).
+
+### Phần 2: Khởi chạy Trí tuệ nhân tạo (Python)
+1. Mở Terminal và cài đặt thư viện yêu cầu:
    ```bash
-   pip install opencv-python ultralytics requests
+   pip install opencv-python numpy
+   ```
+2. Đảm bảo file `cars.xml` nằm cùng thư mục với file `main.py`.
+3. Mở file `main.py` và dán IP của ESP32 vào biến `STREAM_URL` (nhớ giữ lại đuôi `:81/stream`):
+   ```python
+   STREAM_URL = "[http://192.168.2.41:81/stream](http://192.168.2.41:81/stream)"
+   ```
+4. Chạy file Python:
+   ```bash
+   python main.py
+   ```
+
+---
+
+## 📐 Hướng dẫn Hiệu chỉnh (Calibration)
+Để hệ thống đo khoảng cách chính xác, bạn cần hiệu chỉnh **Tiêu cự (Focal Length)** cho camera của mình:
+1. Đặt chiếc xe cách camera đúng **30 cm (0.3m)**.
+2. Chạy file Python và quan sát màn hình.
+3. Trong file `main.py`, điều chỉnh biến `FOCAL_LENGTH`:
+   * Nếu màn hình hiển thị > 0.3m: **Giảm** số này xuống.
+   * Nếu màn hình hiển thị < 0.3m: **Tăng** số này lên.
+4. Điều chỉnh cho đến khi khoảng cách hiển thị đúng `0.30 m`. Hệ thống của bạn đã được hiệu chuẩn!
+
+---
+
+## 📝 Lưu ý phát triển
+* Để thuật toán Haar Cascade hoạt động tốt nhất, hãy chĩa camera trực diện vào phần **đầu xe** hoặc **đuôi xe**.
+* Nếu bị báo lỗi `Stream timeout triggered`, hãy kiểm tra xem có tab trình duyệt Web nào đang chiếm dụng luồng Camera của mạch không. ESP32-CAM chỉ phục vụ 1 luồng duy nhất tại 1 thời điểm.
